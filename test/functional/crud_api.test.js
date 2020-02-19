@@ -1042,6 +1042,33 @@ describe('CRUD API', function() {
     });
   });
 
+  it('should respect bson options for findAndModify commands from MongoClient constructor', function(done) {
+    let configuration = this.configuration;
+    let client = configuration.newClient('mongodb://localhost:27017/', { ignoreUndefined: true });
+    client.connect((err, client) => {
+      expect(err).to.not.exist;
+      this.defer(() => client.close());
+
+      let db = client.db(configuration.db);
+      let coll = db.collection('t21_1');
+      coll.insertOne({ a: 1, b: 2, c: 3 }, (err, r) => {
+        expect(err).to.not.exist;
+        expect(r.insertedCount).to.equal(1);
+
+        // empty update document
+        coll.findOneAndUpdate({ a: 1 }, { $set: { a: 42, b: undefined } }, (err, r) => {
+          expect(err).to.not.exist;
+
+          coll.find().toArray((err, docs) => {
+            expect(err).to.not.exist;
+            expect(docs).to.eql([{ a: 42, b: 2, c: 3 }]);
+            done();
+          });
+        });
+      });
+    });
+  });
+
   it('should correctly throw error if update doc for updateOne lacks atomic operator', {
     // Add a tag that our runner can trigger on
     // in this case we are setting that node needs to be higher than 0.10.X to run
